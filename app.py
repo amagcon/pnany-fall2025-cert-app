@@ -76,7 +76,7 @@ def make_certificate_pdf(full_name: str, email: str, score_pct: float, cert_id: 
 
     c.setFillColor(colors.black)
     c.setFont("Helvetica", 16)
-    c.drawCentredString(width/2, height - 80, "Certificate of Completion")
+    c.drawCentredString(width/2, height/2 + 100, "Certificate of Completion")
 
     # Recipient name (large, center)
     c.setFont("Helvetica-Bold", 24)
