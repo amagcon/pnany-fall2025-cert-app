@@ -177,7 +177,7 @@ if st.session_state.get("participant_ok"):
     overall_zoom = st.selectbox("Satisfaction with method of presentation (ZOOM)", ["Excellent","Good","Undecided","Unlikely","Very Unlikely"])
 
     # Section 3 — Outcomes met (Likert)
-    lo_met = L("At least 80% of attendees will pass a post-test with a score of 75% or higher.")
+    lo_met = L("Were Activity Learning Outcomes Met? At least 80% of attendees will pass a post-test with a score of 75% or higher.")
 
     # Section 4 — Speaker teaching effectiveness (1–5)
     st.markdown("**Speaker Teaching Effectiveness** (rate 1–5)")
