@@ -85,9 +85,9 @@ def make_certificate_pdf(full_name: str, email: str, score_pct: float, cert_id: 
     # Body text (wrapped, center)
     styles = getSampleStyleSheet()
     body = (
-        f"This certifies that <b>{full_name}</b> ({email}) has attended and successfully completed the "
-        f"webinar <b>{COURSE_TITLE}</b> held on <b>{COURSE_DATE}</b>, and passed the post-test with a score of "
-        f"<b>{round(score_pct)}%</b>. Credits awarded: <b>{CREDIT_HOURS} contact hour(s)</b>."
+        f"This certifies that {full_name} ({email}) has attended and successfully completed the "
+        f"webinar {COURSE_TITLE} held on {COURSE_DATE}, and passed the post-test with a score of "
+        f"{round(score_pct)}%. Credits awarded: {CREDIT_HOURS} contact hour(s)."
     )
     from textwrap import wrap
     c.setFont("Helvetica", 12)
