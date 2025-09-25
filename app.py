@@ -3,10 +3,12 @@ import streamlit as st
 from datetime import datetime
 import uuid, csv, os, io, json
 
-#st.write("Secrets keys loaded:", list(st.secrets.keys()))
-
 # Page config MUST be the first Streamlit command
-st.set_page_config(page_title="PNANY Fall 2025 — Evaluation & Certificate", page_icon="🎓", layout="centered")
+st.set_page_config(
+    page_title="PNANY Fall 2025 — Evaluation & Certificate",
+    page_icon="🎓",
+    layout="centered",
+)
 
 # =========================
 # SETTINGS (edit these)
@@ -19,22 +21,11 @@ PASSING_SCORE = 75  # percent; >= passes
 CERT_ISSUER = "PNAA Accredited Provider Unit (P0613)"
 CERT_SIGNATURE_NAME = "Ninotchka Brydges, PhD, DNP, MBA, APRN, ACNP-BC, FNAP, FAAN"
 CERT_SIGNATURE_TITLE = "PNAA Accredited Provider Program Director"
-# Set this when you publish a verify endpoint (e.g., Apps Script URL + '?cert_id=')
+# Optional verify URL (leave as is if you don't have a verifier endpoint yet)
 CERT_VERIFY_BASE_URL = "https://example.org/verify?cert_id="
 
 SAVE_DIR = "data"
 os.makedirs(SAVE_DIR, exist_ok=True)
-
-# Optional quick secrets check (AFTER set_page_config)
-if "gcp_service_account" in st.secrets:
-    st.caption("✅ Found gcp_service_account in Secrets")
-else:
-    st.caption("ℹ️ Add [gcp_service_account] to Secrets to enable Google Sheets logging.")
-
-# Optional: show which sheet we’ll log to (non-sensitive)
-if "SHEET_ID" in st.secrets:
-    st.caption("Using Google Sheet ID (SHEET_ID) from Secrets.")
-
 
 # =========================
 # LOAD QUIZ (questions.json at repo root)
@@ -51,7 +42,7 @@ from reportlab.lib.utils import ImageReader
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Paragraph
-from PIL import Image  # noqa: F401  (required for qrcode PIL backend)
+from PIL import Image  # noqa: F401 (required for qrcode PIL backend)
 import qrcode
 
 def make_certificate_pdf(full_name: str, email: str, score_pct: float, cert_id: str) -> bytes:
@@ -60,71 +51,62 @@ def make_certificate_pdf(full_name: str, email: str, score_pct: float, cert_id: 
     c = canvas.Canvas(buffer, pagesize=landscape(letter))
     width, height = landscape(letter)  # ~792 x 612 points
 
-    # OPTIONAL: full-page background at assets/cert_bg.png
+    # Optional full-page background
     bg_path = "assets/cert_bg.png"
     if os.path.exists(bg_path):
         try:
-            c.drawImage(ImageReader(bg_path), 0, 0, width=width, height=height,
-                        preserveAspectRatio=True, anchor="c")
+            c.drawImage(
+                ImageReader(bg_path),
+                0, 0,
+                width=width, height=height,
+                preserveAspectRatio=True, anchor="c",
+            )
         except Exception as e:
             st.warning(f"Background image found but could not be drawn: {e}")
 
-    # Title (center)
+    # Title (centered)
     c.setFillColor(colors.black)
-    c.setFont("Helvetica-Bold", 30)
-    c.drawCentredString(width/2, height/2 + 90, "Certificate of Completion")
+    c.setFont("Helvetica-Bold", 32)
+    c.drawCentredString(width/2, height/2 + 95, "Certificate of Completion")
 
-    # Name (center, below title)
-    c.setFont("Helvetica-Bold", 24)
-    c.drawCentredString(width/2, height/2 + 50, full_name)
+    # Recipient name (centered)
+    c.setFont("Helvetica-Bold", 26)
+    c.drawCentredString(width/2, height/2 + 55, full_name)
 
-    # Body (centered block)
+    # Body text (centered block)
     styles = getSampleStyleSheet()
-    body = (
-        f"successfully completed the Philippine Nurses Association of New York, Inc. webinar "
-        f"{COURSE_TITLE} on {COURSE_DATE}."
-        #f"Awarded: {CREDIT_HOURS} contact hour(s)."
-    )
     from textwrap import wrap
-    c.setFont("Helvetica", 12)
+    c.setFont("Helvetica", 13)
+    body = (
+        f"has successfully completed the Philippine Nurses Association of New York, Inc. webinar "
+        f"“{COURSE_TITLE}” on {COURSE_DATE} and passed the post-test with a score of "
+        f"{round(score_pct)}%. Credits awarded: {CREDIT_HOURS} contact hour(s)."
+    )
     y = height/2 + 18
-    for line in wrap(Paragraph(body, styles["Normal"]).text, 100):
+    for line in wrap(Paragraph(body, styles['Normal']).text, 100):
         c.drawCentredString(width/2, y, line)
         y -= 16
 
-    # (Optional) Organization at top – comment out if your background already has this
-    # c.setFillColor(colors.HexColor("#0B3D91"))
-    # c.setFont("Helvetica-Bold", 18)
-    # c.drawCentredString(width/2, height - 40, ORG_NAME)
-    c.setFillColor(colors.black)
-
-    # Cert ID & issued date (bottom-right cluster)
+    # Cert ID & issued date (bottom-right)
     issued_on = datetime.now().strftime("%Y-%m-%d %H:%M")
-    c.setFont("Helvetica", 7)
+    c.setFont("Helvetica", 9)
     c.drawRightString(width - 60, 72, f"Certificate ID: {cert_id}")
     c.drawRightString(width - 60, 58, f"Issued on: {issued_on}")
 
-    # QR (bottom-right)
-    #verify_url = f"{CERT_VERIFY_BASE_URL}{cert_id}"
-    #qr = qrcode.QRCode(box_size=3, border=2)
-    #qr.add_data(verify_url)
-    #qr.make(fit=True)
-    #qimg = qr.make_image(fill_color="black", back_color="white")
-    #qbuf = io.BytesIO()
-    #qimg.save(qbuf, format="PNG")
-    #qbuf.seek(0)
-    #qr_size = 90
-    #c.drawImage(ImageReader(qbuf), width - 150, 78, qr_size, qr_size)
-    #c.setFont("Helvetica-Oblique", 9)
-    #c.drawRightString(width - 60, 76, "Scan to verify")
-
-    # (Footer removed by request — nothing extra drawn here)
+    # Optional QR code (commented out; enable if you have a live verifier URL)
+    # verify_url = f"{CERT_VERIFY_BASE_URL}{cert_id}"
+    # qr = qrcode.QRCode(box_size=3, border=2)
+    # qr.add_data(verify_url); qr.make(fit=True)
+    # qimg = qr.make_image(fill_color="black", back_color="white")
+    # qbuf = io.BytesIO(); qimg.save(qbuf, format="PNG"); qbuf.seek(0)
+    # qr_size = 90
+    # c.drawImage(ImageReader(qbuf), width - 150, 78, qr_size, qr_size)
+    # c.setFont("Helvetica-Oblique", 9)
+    # c.drawRightString(width - 60, 76, "Scan to verify")
 
     c.showPage()
     c.save()
     return buffer.getvalue()
-
-
 
 # =========================
 # PERSIST: CSV (local)
@@ -168,15 +150,14 @@ if cont:
 if st.session_state.get("participant_ok"):
     st.subheader("📊 Course Evaluation")
 
-    # Section 1 — Likert (text scale). Default = "Strongly agree" (you can change to "Agree")
+    # Section 1 — Likert (text scale)
     likert = ["Strongly agree", "Agree", "Undecided", "Disagree", "Strongly disagree"]
-    def L(label):
-        return st.select_slider(label, options=likert, value="Strongly agree")
+    def L(label): return st.select_slider(label, options=likert, value="Strongly agree")
 
     ev_org = L("Was well organized")
-    ev_ad = L("Was consistent with flyer advertising event")
+    ev_ad  = L("Was consistent with flyer advertising event")
     ev_rel = L("Was relevant to learning outcomes of presentation")
-    ev_virt = L("Effectively used virtual teaching method")
+    ev_virt= L("Effectively used virtual teaching method")
     ev_obj = L("Enabled me to meet my personal objectives")
 
     # Section 2 — Overall satisfaction
@@ -210,29 +191,29 @@ if st.session_state.get("participant_ok"):
 
     # Section 5 — Improvement areas (checkboxes)
     st.markdown("**This activity will assist in improvement of (check all that apply):**")
-    imp_knowledge = st.checkbox("Knowledge")
-    imp_skills = st.checkbox("Skills")
-    imp_competence = st.checkbox("Competence")
+    imp_knowledge   = st.checkbox("Knowledge")
+    imp_skills      = st.checkbox("Skills")
+    imp_competence  = st.checkbox("Competence")
     imp_performance = st.checkbox("Performance")
-    imp_outcomes = st.checkbox("Patient Outcomes")
+    imp_outcomes    = st.checkbox("Patient Outcomes")
 
     # Section 6/7 — Balance & Commercial
-    fair_balanced = st.radio("Do you feel this content was fair and balanced?", ["Yes","No"], index=0)
-    commercial_support = st.radio("Did this presentation have any commercial support?", ["Yes","No"], index=1)
-    commercial_bias = st.radio("If yes, did the speaker demonstrate any commercial bias?", ["N/A","Yes","No"], index=0)
-    bias_explain = st.text_input("If yes, explain", "")
+    fair_balanced       = st.radio("Do you feel this content was fair and balanced?", ["Yes","No"], index=0)
+    commercial_support  = st.radio("Did this presentation have any commercial support?", ["Yes","No"], index=1)
+    commercial_bias     = st.radio("If yes, did the speaker demonstrate any commercial bias?", ["N/A","Yes","No"], index=0)
+    bias_explain        = st.text_input("If yes, explain", "")
 
     # Section 8 — Practice change + benefit
     st.markdown("**Practice change**")
-    pc_values = st.checkbox("Reflect on and adopt values that elevate nurses to heroes")
-    pc_joy = st.checkbox("Employ ways to instill and sustain the joy of practice in nursing and healthcare")
-    pc_health = st.checkbox("Utilize ways to address healthcare issues of Filipino Americans in NY")
-    pc_other = st.text_input("Other (please specify)", "")
+    pc_values   = st.checkbox("Reflect on and adopt values that elevate nurses to heroes")
+    pc_joy      = st.checkbox("Employ ways to instill and sustain the joy of practice in nursing and healthcare")
+    pc_health   = st.checkbox("Utilize ways to address healthcare issues of Filipino Americans in NY")
+    pc_other    = st.text_input("Other (please specify)", "")
     beneficial_topic = st.text_input("Which program topic was most beneficial to you?")
 
     # Section 9/10 — Topics & comments
     topics_interest = st.text_area("What topics of interest would you like us to provide?")
-    comments = st.text_area("Comments")
+    comments        = st.text_area("Comments")
 
     # ---- 3) Post-Test ----
     st.subheader("📝 Post-Test (10 items)")
@@ -244,13 +225,13 @@ if st.session_state.get("participant_ok"):
             q["options"],
             index=None,
             key=f"q{i}",
-            label_visibility="collapsed"
+            label_visibility="collapsed",
         )
         st.divider()
 
     # ---- Submit ----
     if st.button("Submit Evaluation & Generate Certificate"):
-        if any(answers[str(i)] is None for i in range(1, len(QUIZ)+1)):
+        if any(answers[str(i)] is None for i in range(1, len(QUIZ) + 1)):
             st.error("Please answer all post-test questions.")
             st.stop()
 
@@ -262,7 +243,7 @@ if st.session_state.get("participant_ok"):
 
         cert_id = str(uuid.uuid4())
 
-        # Build saved row (matches Google Sheet headers)
+        # Build saved row
         row = {
             "timestamp": datetime.now().isoformat(timespec="seconds"),
             "full_name": full_name,
@@ -300,8 +281,8 @@ if st.session_state.get("participant_ok"):
             "pc_values": pc_values, "pc_joy": pc_joy, "pc_health": pc_health, "pc_other": pc_other,
             "beneficial_topic": beneficial_topic,
             # Section 9/10
-            "topics_interest": topics_interest.replace("\n"," "),
-            "comments": comments.replace("\n"," "),
+            "topics_interest": topics_interest.replace("\n", " "),
+            "comments": comments.replace("\n", " "),
 
             # Post-test summary
             "score_pct": f"{score_pct:.0f}",
@@ -309,54 +290,34 @@ if st.session_state.get("participant_ok"):
             "cert_id": cert_id,
         }
 
-        # Save locally
+        # Save locally as CSV (backup)
         save_row_to_csv(os.path.join(SAVE_DIR, "submissions.csv"), row)
 
-        #
-        # Google Sheets logging (TOML secrets)
-        # ---------- Google Sheets logging (by Spreadsheet ID) ----------
+        # ---------- Supabase logging (optional) ----------
         try:
-            import gspread
-            from oauth2client.service_account import ServiceAccountCredentials
-        
-            missing = []
-            if "gcp_service_account" not in st.secrets:
-                missing.append("[gcp_service_account]")
-            if "SHEET_ID" not in st.secrets:
-                missing.append("SHEET_ID")
-            if missing:
-                st.caption("Sheets logging not enabled. Missing: " + ", ".join(missing))
+            from supabase import create_client, Client
+
+            if "SUPABASE_URL" not in st.secrets or "SUPABASE_KEY" not in st.secrets:
+                st.caption("Supabase logging not enabled. Missing: SUPABASE_URL or SUPABASE_KEY in Secrets.")
             else:
-                creds_info = dict(st.secrets["gcp_service_account"])
-                scope = ["https://www.googleapis.com/auth/spreadsheets",
-                         "https://www.googleapis.com/auth/drive"]
-                creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_info, scope)
-                client = gspread.authorize(creds)
-        
-                sh = client.open_by_key(st.secrets["SHEET_ID"])
-                ws = sh.worksheet(st.secrets.get("WORKSHEET_TITLE", "Sheet1"))
-        
-                def yn(v): return "Yes" if v else "No"
-                values = [
-                    row["timestamp"], row["full_name"], row["email"], row["role"], row["attendance"],
-                    row["ev_org"], row["ev_ad"], row["ev_rel"], row["ev_virt"], row["ev_obj"],
-                    row["overall_prog"], row["overall_rec"], row["overall_zoom"],
-                    row["lo_met"],
-                    row["q4_speaker_yap"], row["q4_speaker_sagar"], row["q4_speaker_velasquez"], row["q4_speaker_pastoral"],
-                    row["q4_speaker_santarina"], row["q4_speaker_planillo"], row["q4_speaker_florendo"], row["q4_speaker_jomoc"],
-                    row["q4_speaker_oliverio"], row["q4_speaker_temprosa"], row["q4_speaker_bedona"], row["q4_speaker_agcon"],
-                    yn(row["improve_knowledge"]), yn(row["improve_skills"]), yn(row["improve_competence"]), yn(row["improve_performance"]), yn(row["improve_outcomes"]),
-                    row["fair_balanced"], row["commercial_support"], row["commercial_bias"], row["bias_explain"],
-                    yn(row["pc_values"]), yn(row["pc_joy"]), yn(row["pc_health"]), row["pc_other"], row["beneficial_topic"],
-                    row["topics_interest"], row["comments"],
-                    row["score_pct"], yn(row["passed"]), row["cert_id"]
-                ]
-                ws.append_row(values, value_input_option="USER_ENTERED")
-                st.caption("✅ Logged to Google Sheets.")
+                url = st.secrets["SUPABASE_URL"]
+                key = st.secrets["SUPABASE_KEY"]
+                supa: Client = create_client(url, key)
+
+                to_insert = {
+                    "full_name": row["full_name"],
+                    "email": row["email"],
+                    "role": row["role"],
+                    "attendance": row["attendance"],
+                    "score_pct": int(float(row["score_pct"])),
+                    "passed": bool(row["passed"]),
+                    "cert_id": cert_id,
+                    "payload": row,  # store all fields for future analysis
+                }
+                supa.table("submissions").insert(to_insert).execute()
+                st.caption("✅ Logged to Supabase.")
         except Exception as e:
-            st.warning(f"Google Sheets logging failed: {e}")
-
-
+            st.warning(f"Supabase logging failed: {e}")
 
         # Certificate
         if passed:
