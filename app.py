@@ -180,7 +180,7 @@ if st.session_state.get("participant_ok"):
     lo_met = L("Were Activity Learning Outcomes Met? At least 80% of attendees will pass a post-test with a score of 75% or higher.")
 
     # Section 4 — Speaker teaching effectiveness (1–5)
-    st.markdown("**Speaker Teaching Effectiveness** (rate 1–5)")
+    st.markdown("Speaker teaching effectiveness (1 = Poor, 5 = Excellent)")
     speaker_fields = [
         ("q4_speaker_yap",        "Wilfredo Yap Jr., DNP, RN, AMB-BC, CENP, NEA-BC"),
         ("q4_speaker_sagar",      "Priscilla L. Sagar, EdD, RN, ACNS-BC, CTN-A, FNYAM, FTNSS, FAAN"),
