@@ -74,7 +74,7 @@ def make_certificate_pdf(full_name: str, email: str, score_pct: float, cert_id: 
     # Body (centered block)
     styles = getSampleStyleSheet()
     body = (
-        f"This certifies that {full_name} successfully completed the Philippine Nurses Association of New York, Inc. webinar "
+        f"successfully completed the Philippine Nurses Association of New York, Inc. webinar "
         f"{COURSE_TITLE} on {COURSE_DATE}."
         #f"Awarded: {CREDIT_HOURS} contact hour(s)."
     )
