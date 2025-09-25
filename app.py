@@ -121,7 +121,7 @@ def make_certificate_pdf(full_name: str, email: str, score_pct: float, cert_id: 
     return buffer.getvalue()
 
 # =========================
-# PERSIST: CSV (local)
+# PERSIST:  (local)
 # =========================
 def save_row_to_csv(path, row):
     new = not os.path.exists(path)
@@ -130,6 +130,47 @@ def save_row_to_csv(path, row):
         if new:
             w.writeheader()
         w.writerow(row)
+# =========================
+
+# ---------- Google Sheets logging (optional; enabled via Secrets) ----------
+try:
+    if "GSPREAD_SERVICE_ACCOUNT_JSON" in st.secrets and "GSPREAD_SHEET_NAME" in st.secrets:
+        import json as _json
+        import gspread
+        from oauth2client.service_account import ServiceAccountCredentials
+
+        creds_info = _json.loads(st.secrets["GSPREAD_SERVICE_ACCOUNT_JSON"])
+        scope = ["https://www.googleapis.com/auth/spreadsheets",
+                 "https://www.googleapis.com/auth/drive"]
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_info, scope)
+        client = gspread.authorize(creds)
+
+        sh = client.open(st.secrets["GSPREAD_SHEET_NAME"])
+        ws = sh.sheet1
+
+        # ORDER MUST MATCH YOUR SHEET HEADERS
+        values = [
+            row["timestamp"], row["full_name"], row["email"], row["role"], row["attendance"],
+            row["ev_org"], row["ev_ad"], row["ev_rel"], row["ev_virt"], row["ev_obj"],
+            row["overall_prog"], row["overall_rec"], row["overall_zoom"],
+            row["lo_met"],
+            row["q4_speaker_yap"], row["q4_speaker_sagar"], row["q4_speaker_velasquez"], row["q4_speaker_pastoral"],
+            row["q4_speaker_santarina"], row["q4_speaker_planillo"], row["q4_speaker_florendo"], row["q4_speaker_jomoc"],
+            row["q4_speaker_oliverio"], row["q4_speaker_temprosa"], row["q4_speaker_bedona"], row["q4_speaker_agcon"],
+            row["improve_knowledge"], row["improve_skills"], row["improve_competence"], row["improve_performance"], row["improve_outcomes"],
+            row["fair_balanced"], row["commercial_support"], row["commercial_bias"], row["bias_explain"],
+            row["pc_values"], row["pc_joy"], row["pc_health"], row["pc_other"], row["beneficial_topic"],
+            row["topics_interest"], row["comments"],
+            row["score_pct"], row["passed"], row["cert_id"]
+        ]
+
+        ws.append_row(values, value_input_option="USER_ENTERED")
+        st.caption("Logged to Google Sheets.")
+    else:
+        st.caption("Tip: set GSPREAD_SERVICE_ACCOUNT_JSON and GSPREAD_SHEET_NAME in Secrets to enable Google Sheets logging.")
+except Exception as e:
+    st.warning(f"Google Sheets logging failed: {e}")
+
 
 # =========================
 # UI
