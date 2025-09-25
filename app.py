@@ -3,12 +3,12 @@ import streamlit as st
 from datetime import datetime
 import uuid, csv, os, io, json
 
-===
+# ===
 if "gcp_service_account" in st.secrets:
     st.caption("✅ Found gcp_service_account in Secrets")
 else:
     st.warning("❌ gcp_service_account not found in Secrets")
-===
+# ===
 
 # =========================
 # SETTINGS (edit these)
