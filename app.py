@@ -97,11 +97,11 @@ def make_certificate_pdf(full_name: str, email: str, score_pct: float, cert_id: 
         y -= 16
 
     # Signature block (bottom-left area)
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(60, 90, CERT_SIGNATURE_NAME)
-    c.setFont("Helvetica", 11)
-    c.drawString(60, 74, CERT_SIGNATURE_TITLE)
-    c.drawString(60, 58, f"Issued by: {CERT_ISSUER}")
+   # c.setFont("Helvetica-Bold", 12)
+   # c.drawString(60, 90, CERT_SIGNATURE_NAME)
+   # c.setFont("Helvetica", 11)
+   # c.drawString(60, 74, CERT_SIGNATURE_TITLE)
+   # c.drawString(60, 58, f"Issued by: {CERT_ISSUER}")
 
     # Certificate ID + issue date (bottom-right text block)
     issued_on = datetime.now().strftime("%Y-%m-%d %H:%M %Z")
@@ -110,22 +110,22 @@ def make_certificate_pdf(full_name: str, email: str, score_pct: float, cert_id: 
     c.drawRightString(width - 60, 58, f"Issued on: {issued_on}")
 
     # QR code (bottom-right)
-    verify_url = f"{CERT_VERIFY_BASE_URL}{cert_id}"
-    qr = qrcode.QRCode(box_size=3, border=2)
-    qr.add_data(verify_url)
-    qr.make(fit=True)
-    qimg = qr.make_image(fill_color="black", back_color="white")
-    qbuf = io.BytesIO()
-    qimg.save(qbuf, format="PNG")
-    qbuf.seek(0)
-    qr_size = 90  # adjust if needed
-    c.drawImage(ImageReader(qbuf), width - 150, 80, qr_size, qr_size)  # near the bottom-right
-    c.setFont("Helvetica-Oblique", 9)
-    c.drawRightString(width - 60, 76, "Scan to verify")
+   # verify_url = f"{CERT_VERIFY_BASE_URL}{cert_id}"
+   # qr = qrcode.QRCode(box_size=3, border=2)
+   # qr.add_data(verify_url)
+   # qr.make(fit=True)
+   # qimg = qr.make_image(fill_color="black", back_color="white")
+   # qbuf = io.BytesIO()
+   # qimg.save(qbuf, format="PNG")
+   # qbuf.seek(0)
+   # qr_size = 90  # adjust if needed
+   # c.drawImage(ImageReader(qbuf), width - 150, 80, qr_size, qr_size)  # near the bottom-right
+   # c.setFont("Helvetica-Oblique", 9)
+   # c.drawRightString(width - 60, 76, "Scan to verify")
 
     # Accreditation footer (very bottom center)
-    c.setFont("Helvetica", 9)
-    footer_lines = [
+   # c.setFont("Helvetica", 9)
+   # footer_lines = [
         "Philippine Nurses Association of America Provider Unit is accredited as a provider of",
         "nursing continuing professional development by the American Nurses Credentialing Center's",
         "Commission on Accreditation. Provider Number: P0613",
