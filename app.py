@@ -65,8 +65,8 @@ def make_certificate_pdf(full_name: str, email: str, score_pct: float, cert_id: 
     styles = getSampleStyleSheet()
     body = (
         f"This certifies that <b>{full_name}</b> ({email}) has attended and successfully completed the "
-        f"webinar <b>{COURSE_TITLE}</b> held on <b>{COURSE_DATE}</b>, and passed the post-test with a score of "
-        f"<b>{round(score_pct)}%</b>. Credits awarded: <b>{CREDIT_HOURS} contact hour(s)</b>."
+        f"webinar <b>{COURSE_TITLE}</b> held on <b>{COURSE_DATE}</b>, and passed the post-test."
+        f"Credits awarded: <b>{CREDIT_HOURS} contact hour(s)</b>."
     )
     para = Paragraph(body, styles["Normal"])
     import textwrap as tw
