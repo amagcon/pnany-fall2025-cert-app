@@ -146,7 +146,7 @@ with st.form("info"):
     with c2:
         email = st.text_input("Email *")
     role = st.selectbox("Role / Credentials", ["RN", "APRN", "NP", "PA", "Student", "Other"])
-    attendance = st.checkbox("I attended the PNANY Fall 2025 Conference")
+    attendance = st.checkbox("I certify that I attended and completed the Lead to INSPIRE Fall Conference: Gabay at Galing: Empowering the New Generation of Nurse Leaders, held online on October 18, 2025.")
     cont = st.form_submit_button("Continue ➡️")
 
 if cont:
