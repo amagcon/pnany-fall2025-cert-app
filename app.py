@@ -307,6 +307,7 @@ if st.session_state.get("participant_ok"):
 
         #
         # Google Sheets logging (TOML secrets)
+        # ---------- Google Sheets logging (by Spreadsheet ID) ----------
         try:
             import gspread
             from oauth2client.service_account import ServiceAccountCredentials
@@ -314,20 +315,21 @@ if st.session_state.get("participant_ok"):
             missing = []
             if "gcp_service_account" not in st.secrets:
                 missing.append("[gcp_service_account]")
-            if "GSPREAD_SHEET_NAME" not in st.secrets:
-                missing.append("GSPREAD_SHEET_NAME")
-        
-            if not missing:
+            if "SHEET_ID" not in st.secrets:
+                missing.append("SHEET_ID")
+            if missing:
+                st.caption("Sheets logging not enabled. Missing: " + ", ".join(missing))
+            else:
                 creds_info = dict(st.secrets["gcp_service_account"])
                 scope = ["https://www.googleapis.com/auth/spreadsheets",
                          "https://www.googleapis.com/auth/drive"]
                 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_info, scope)
                 client = gspread.authorize(creds)
         
-                sh = client.open(st.secrets["GSPREAD_SHEET_NAME"])
-                ws = sh.sheet1
+                sh = client.open_by_key(st.secrets["SHEET_ID"])
+                ws = sh.worksheet(st.secrets.get("WORKSHEET_TITLE", "Sheet1"))
         
-                # Must align with your header order in the sheet
+                def yn(v): return "Yes" if v else "No"
                 values = [
                     row["timestamp"], row["full_name"], row["email"], row["role"], row["attendance"],
                     row["ev_org"], row["ev_ad"], row["ev_rel"], row["ev_virt"], row["ev_obj"],
@@ -336,18 +338,17 @@ if st.session_state.get("participant_ok"):
                     row["q4_speaker_yap"], row["q4_speaker_sagar"], row["q4_speaker_velasquez"], row["q4_speaker_pastoral"],
                     row["q4_speaker_santarina"], row["q4_speaker_planillo"], row["q4_speaker_florendo"], row["q4_speaker_jomoc"],
                     row["q4_speaker_oliverio"], row["q4_speaker_temprosa"], row["q4_speaker_bedona"], row["q4_speaker_agcon"],
-                    row["improve_knowledge"], row["improve_skills"], row["improve_competence"], row["improve_performance"], row["improve_outcomes"],
+                    yn(row["improve_knowledge"]), yn(row["improve_skills"]), yn(row["improve_competence"]), yn(row["improve_performance"]), yn(row["improve_outcomes"]),
                     row["fair_balanced"], row["commercial_support"], row["commercial_bias"], row["bias_explain"],
-                    row["pc_values"], row["pc_joy"], row["pc_health"], row["pc_other"], row["beneficial_topic"],
+                    yn(row["pc_values"]), yn(row["pc_joy"]), yn(row["pc_health"]), row["pc_other"], row["beneficial_topic"],
                     row["topics_interest"], row["comments"],
-                    row["score_pct"], row["passed"], row["cert_id"]
+                    row["score_pct"], yn(row["passed"]), row["cert_id"]
                 ]
                 ws.append_row(values, value_input_option="USER_ENTERED")
                 st.caption("✅ Logged to Google Sheets.")
-            else:
-                st.caption("Sheets logging not enabled. Missing: " + ", ".join(missing))
         except Exception as e:
             st.warning(f"Google Sheets logging failed: {e}")
+
 
 
         # Certificate
