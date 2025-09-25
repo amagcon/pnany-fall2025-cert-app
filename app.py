@@ -93,7 +93,7 @@ def make_certificate_pdf(full_name: str, email: str, score_pct: float, cert_id: 
 
     # Cert ID & issued date (bottom-right cluster)
     issued_on = datetime.now().strftime("%Y-%m-%d %H:%M")
-    c.setFont("Helvetica", 10)
+    c.setFont("Helvetica", 7)
     c.drawRightString(width - 60, 72, f"Certificate ID: {cert_id}")
     c.drawRightString(width - 60, 58, f"Issued on: {issued_on}")
 
