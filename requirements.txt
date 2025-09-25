@@ -1,0 +1,5 @@
+streamlit
+reportlab
+pandas
+qrcode
+python-docx
