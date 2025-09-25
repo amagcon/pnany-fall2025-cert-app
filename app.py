@@ -27,7 +27,12 @@ os.makedirs(SAVE_DIR, exist_ok=True)
 if "gcp_service_account" in st.secrets:
     st.caption("✅ Found gcp_service_account in Secrets")
 else:
-    st.caption("ℹ️ Sheets logging is optional. Add [gcp_service_account] + GSPREAD_SHEET_NAME in Secrets to enable it.")
+    st.caption("ℹ️ Add [gcp_service_account] to Secrets to enable Google Sheets logging.")
+
+# Optional: show which sheet we’ll log to (non-sensitive)
+if "SHEET_ID" in st.secrets:
+    st.caption("Using Google Sheet ID (SHEET_ID) from Secrets.")
+
 
 # =========================
 # LOAD QUIZ (questions.json at repo root)
