@@ -38,7 +38,7 @@ with open("questions.json", "r", encoding="utf-8") as f:
 # =========================
 # PDF GENERATION
 # =========================
-from reportlab.lib.pagesizes import landscape
+from reportlab.lib.pagesizes import letter, landscape
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 from reportlab.lib import colors
