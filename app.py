@@ -3,6 +3,13 @@ import streamlit as st
 from datetime import datetime
 import uuid, csv, os, io, json
 
+===
+if "gcp_service_account" in st.secrets:
+    st.caption("✅ Found gcp_service_account in Secrets")
+else:
+    st.warning("❌ gcp_service_account not found in Secrets")
+===
+
 # =========================
 # SETTINGS (edit these)
 # =========================
@@ -133,22 +140,23 @@ def save_row_to_csv(path, row):
 # =========================
 
 # ---------- Google Sheets logging (optional; enabled via Secrets) ----------
+# ---------- Google Sheets logging (TOML secrets) ----------
 try:
-    if "GSPREAD_SERVICE_ACCOUNT_JSON" in st.secrets and "GSPREAD_SHEET_NAME" in st.secrets:
-        import json as _json
-        import gspread
-        from oauth2client.service_account import ServiceAccountCredentials
+    import gspread
+    from oauth2client.service_account import ServiceAccountCredentials
 
-        creds_info = _json.loads(st.secrets["GSPREAD_SERVICE_ACCOUNT_JSON"])
-        scope = ["https://www.googleapis.com/auth/spreadsheets",
-                 "https://www.googleapis.com/auth/drive"]
+    if "gcp_service_account" in st.secrets and "GSPREAD_SHEET_NAME" in st.secrets:
+        creds_info = dict(st.secrets["gcp_service_account"])  # already parsed from TOML
+        scope = [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive",
+        ]
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_info, scope)
         client = gspread.authorize(creds)
 
         sh = client.open(st.secrets["GSPREAD_SHEET_NAME"])
         ws = sh.sheet1
 
-        # ORDER MUST MATCH YOUR SHEET HEADERS
         values = [
             row["timestamp"], row["full_name"], row["email"], row["role"], row["attendance"],
             row["ev_org"], row["ev_ad"], row["ev_rel"], row["ev_virt"], row["ev_obj"],
@@ -163,11 +171,10 @@ try:
             row["topics_interest"], row["comments"],
             row["score_pct"], row["passed"], row["cert_id"]
         ]
-
         ws.append_row(values, value_input_option="USER_ENTERED")
         st.caption("Logged to Google Sheets.")
     else:
-        st.caption("Tip: set GSPREAD_SERVICE_ACCOUNT_JSON and GSPREAD_SHEET_NAME in Secrets to enable Google Sheets logging.")
+        st.caption("Tip: add [gcp_service_account] and GSPREAD_SHEET_NAME to Secrets to enable Sheets logging.")
 except Exception as e:
     st.warning(f"Google Sheets logging failed: {e}")
 
