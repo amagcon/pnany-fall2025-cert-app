@@ -3,12 +3,8 @@ import streamlit as st
 from datetime import datetime
 import uuid, csv, os, io, json
 
-# ===
-if "gcp_service_account" in st.secrets:
-    st.caption("✅ Found gcp_service_account in Secrets")
-else:
-    st.warning("❌ gcp_service_account not found in Secrets")
-# ===
+# Page config MUST be the first Streamlit command
+st.set_page_config(page_title="PNANY Fall 2025 — Evaluation & Certificate", page_icon="🎓", layout="centered")
 
 # =========================
 # SETTINGS (edit these)
@@ -26,6 +22,12 @@ CERT_VERIFY_BASE_URL = "https://example.org/verify?cert_id="
 
 SAVE_DIR = "data"
 os.makedirs(SAVE_DIR, exist_ok=True)
+
+# Optional quick secrets check (AFTER set_page_config)
+if "gcp_service_account" in st.secrets:
+    st.caption("✅ Found gcp_service_account in Secrets")
+else:
+    st.caption("ℹ️ Sheets logging is optional. Add [gcp_service_account] + GSPREAD_SHEET_NAME in Secrets to enable it.")
 
 # =========================
 # LOAD QUIZ (questions.json at repo root)
@@ -72,7 +74,7 @@ def make_certificate_pdf(full_name: str, email: str, score_pct: float, cert_id: 
     styles = getSampleStyleSheet()
     body = (
         f"This certifies that <b>{full_name}</b> ({email}) has attended and successfully completed the "
-        f"webinar <b>{COURSE_TITLE}</b> held on <b>{COURSE_DATE}</b>, and passed the post-test."
+        f"webinar <b>{COURSE_TITLE}</b> held on <b>{COURSE_DATE}</b>, and passed the post-test. "
         f"Credits awarded: <b>{CREDIT_HOURS} contact hour(s)</b>."
     )
     para = Paragraph(body, styles["Normal"])
@@ -128,7 +130,7 @@ def make_certificate_pdf(full_name: str, email: str, score_pct: float, cert_id: 
     return buffer.getvalue()
 
 # =========================
-# PERSIST:  (local)
+# PERSIST: CSV (local)
 # =========================
 def save_row_to_csv(path, row):
     new = not os.path.exists(path)
@@ -137,52 +139,10 @@ def save_row_to_csv(path, row):
         if new:
             w.writeheader()
         w.writerow(row)
-# =========================
-
-# ---------- Google Sheets logging (optional; enabled via Secrets) ----------
-# ---------- Google Sheets logging (TOML secrets) ----------
-try:
-    import gspread
-    from oauth2client.service_account import ServiceAccountCredentials
-
-    if "gcp_service_account" in st.secrets and "GSPREAD_SHEET_NAME" in st.secrets:
-        creds_info = dict(st.secrets["gcp_service_account"])  # already parsed from TOML
-        scope = [
-            "https://www.googleapis.com/auth/spreadsheets",
-            "https://www.googleapis.com/auth/drive",
-        ]
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_info, scope)
-        client = gspread.authorize(creds)
-
-        sh = client.open(st.secrets["GSPREAD_SHEET_NAME"])
-        ws = sh.sheet1
-
-        values = [
-            row["timestamp"], row["full_name"], row["email"], row["role"], row["attendance"],
-            row["ev_org"], row["ev_ad"], row["ev_rel"], row["ev_virt"], row["ev_obj"],
-            row["overall_prog"], row["overall_rec"], row["overall_zoom"],
-            row["lo_met"],
-            row["q4_speaker_yap"], row["q4_speaker_sagar"], row["q4_speaker_velasquez"], row["q4_speaker_pastoral"],
-            row["q4_speaker_santarina"], row["q4_speaker_planillo"], row["q4_speaker_florendo"], row["q4_speaker_jomoc"],
-            row["q4_speaker_oliverio"], row["q4_speaker_temprosa"], row["q4_speaker_bedona"], row["q4_speaker_agcon"],
-            row["improve_knowledge"], row["improve_skills"], row["improve_competence"], row["improve_performance"], row["improve_outcomes"],
-            row["fair_balanced"], row["commercial_support"], row["commercial_bias"], row["bias_explain"],
-            row["pc_values"], row["pc_joy"], row["pc_health"], row["pc_other"], row["beneficial_topic"],
-            row["topics_interest"], row["comments"],
-            row["score_pct"], row["passed"], row["cert_id"]
-        ]
-        ws.append_row(values, value_input_option="USER_ENTERED")
-        st.caption("Logged to Google Sheets.")
-    else:
-        st.caption("Tip: add [gcp_service_account] and GSPREAD_SHEET_NAME to Secrets to enable Sheets logging.")
-except Exception as e:
-    st.warning(f"Google Sheets logging failed: {e}")
-
 
 # =========================
 # UI
 # =========================
-st.set_page_config(page_title="PNANY Fall 2025 — Evaluation & Certificate", page_icon="🎓", layout="centered")
 st.title("🎓 PNANY Fall 2025 — Evaluation & Post-Test")
 st.caption("Complete the evaluation and post-test. On passing (≥ 75%), your certificate will be generated.")
 
@@ -194,7 +154,10 @@ with st.form("info"):
     with c2:
         email = st.text_input("Email *")
     role = st.selectbox("Role / Credentials", ["RN", "APRN", "NP", "PA", "Student", "Other"])
-    attendance = st.checkbox("I certify that I attended and completed the Lead to INSPIRE Fall Conference: Gabay at Galing: Empowering the New Generation of Nurse Leaders, held online on October 18, 2025.")
+    attendance = st.checkbox(
+        "I certify that I attended and completed the Lead to INSPIRE Fall Conference: "
+        "Gabay at Galing: Empowering the New Generation of Nurse Leaders, held online on October 18, 2025."
+    )
     cont = st.form_submit_button("Continue ➡️")
 
 if cont:
@@ -208,9 +171,10 @@ if cont:
 if st.session_state.get("participant_ok"):
     st.subheader("📊 Course Evaluation")
 
-    # Section 1 — Likert (1–5; rendered as text scale)
+    # Section 1 — Likert (text scale). Default = "Strongly agree" (you can change to "Agree")
     likert = ["Strongly agree", "Agree", "Undecided", "Disagree", "Strongly disagree"]
-    def L(label): return st.select_slider(label, options=likert, value="Strongly agree")
+    def L(label):
+        return st.select_slider(label, options=likert, value="Strongly agree")
 
     ev_org = L("Was well organized")
     ev_ad = L("Was consistent with flyer advertising event")
@@ -218,17 +182,17 @@ if st.session_state.get("participant_ok"):
     ev_virt = L("Effectively used virtual teaching method")
     ev_obj = L("Enabled me to meet my personal objectives")
 
-    # Section 2 — Overall satisfaction (Excellent → Very Unlikely)
+    # Section 2 — Overall satisfaction
     st.markdown("**Overall Satisfaction**")
-    overall_prog = st.selectbox("Overall satisfaction of the program", ["Excellent","Good","Undecided","Unlikely","Very Unlikely"])
-    overall_rec  = st.selectbox("Likelihood to recommend to colleagues", ["Excellent","Good","Undecided","Unlikely","Very Unlikely"])
-    overall_zoom = st.selectbox("Satisfaction with method of presentation (ZOOM)", ["Excellent","Good","Undecided","Unlikely","Very Unlikely"])
+    overall_prog = st.selectbox("Overall satisfaction of the program", ["Excellent","Good","Undecided","Unlikely","Very Unlikely"], index=0)
+    overall_rec  = st.selectbox("Likelihood to recommend to colleagues", ["Excellent","Good","Undecided","Unlikely","Very Unlikely"], index=0)
+    overall_zoom = st.selectbox("Satisfaction with method of presentation (ZOOM)", ["Excellent","Good","Undecided","Unlikely","Very Unlikely"], index=0)
 
-    # Section 3 — Outcomes met (Likert)
+    # Section 3 — Outcomes met
     lo_met = L("Were Activity Learning Outcomes Met? At least 80% of attendees will pass a post-test with a score of 75% or higher.")
 
     # Section 4 — Speaker teaching effectiveness (1–5)
-    st.markdown("Speaker teaching effectiveness (1 = Poor, 5 = Excellent)")
+    st.markdown("**Speaker teaching effectiveness** *(1 = Poor, 5 = Excellent)*")
     speaker_fields = [
         ("q4_speaker_yap",        "Wilfredo Yap Jr., DNP, RN, AMB-BC, CENP, NEA-BC"),
         ("q4_speaker_sagar",      "Priscilla L. Sagar, EdD, RN, ACNS-BC, CTN-A, FNYAM, FTNSS, FAAN"),
@@ -256,9 +220,9 @@ if st.session_state.get("participant_ok"):
     imp_outcomes = st.checkbox("Patient Outcomes")
 
     # Section 6/7 — Balance & Commercial
-    fair_balanced = st.radio("Do you feel this content was fair and balanced?", ["Yes","No"])
-    commercial_support = st.radio("Did this presentation have any commercial support?", ["Yes","No"])
-    commercial_bias = st.radio("If yes, did the speaker demonstrate any commercial bias?", ["N/A","Yes","No"])
+    fair_balanced = st.radio("Do you feel this content was fair and balanced?", ["Yes","No"], index=0)
+    commercial_support = st.radio("Did this presentation have any commercial support?", ["Yes","No"], index=1)
+    commercial_bias = st.radio("If yes, did the speaker demonstrate any commercial bias?", ["N/A","Yes","No"], index=0)
     bias_explain = st.text_input("If yes, explain", "")
 
     # Section 8 — Practice change + benefit
@@ -301,7 +265,7 @@ if st.session_state.get("participant_ok"):
 
         cert_id = str(uuid.uuid4())
 
-        # Build saved row (matches our recommended sheet headers if you enable Sheets)
+        # Build saved row (matches Google Sheet headers)
         row = {
             "timestamp": datetime.now().isoformat(timespec="seconds"),
             "full_name": full_name,
@@ -351,16 +315,24 @@ if st.session_state.get("participant_ok"):
         # Save locally
         save_row_to_csv(os.path.join(SAVE_DIR, "submissions.csv"), row)
 
-        # Optional: Google Sheets logging (enable via Secrets)
+        # Google Sheets logging (TOML secrets only)
         try:
-            if "GSPREAD_SERVICE_ACCOUNT_JSON" in st.secrets and "GSPREAD_SHEET_NAME" in st.secrets:
-                import json as _json
-                import gspread
-                from oauth2client.service_account import ServiceAccountCredentials
-                creds_info = _json.loads(st.secrets["GSPREAD_SERVICE_ACCOUNT_JSON"])
-                scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+            import gspread
+            from oauth2client.service_account import ServiceAccountCredentials
+
+            missing = []
+            if "gcp_service_account" not in st.secrets:
+                missing.append("[gcp_service_account]")
+            if "GSPREAD_SHEET_NAME" not in st.secrets:
+                missing.append("GSPREAD_SHEET_NAME")
+
+            if not missing:
+                creds_info = dict(st.secrets["gcp_service_account"])
+                scope = ["https://www.googleapis.com/auth/spreadsheets",
+                         "https://www.googleapis.com/auth/drive"]
                 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_info, scope)
                 client = gspread.authorize(creds)
+
                 sh = client.open(st.secrets["GSPREAD_SHEET_NAME"])
                 ws = sh.sheet1
 
@@ -379,9 +351,9 @@ if st.session_state.get("participant_ok"):
                     row["score_pct"], row["passed"], row["cert_id"]
                 ]
                 ws.append_row(values, value_input_option="USER_ENTERED")
-                st.caption("Logged to Google Sheets.")
+                st.caption("✅ Logged to Google Sheets.")
             else:
-                st.caption("Tip: add GSPREAD_SERVICE_ACCOUNT_JSON and GSPREAD_SHEET_NAME in Secrets to enable Sheets logging.")
+                st.caption("Sheets logging not enabled. Missing: " + ", ".join(missing))
         except Exception as e:
             st.warning(f"Google Sheets logging failed: {e}")
 
