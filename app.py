@@ -38,7 +38,7 @@ with open("questions.json", "r", encoding="utf-8") as f:
 # =========================
 # PDF GENERATION
 # =========================
-from reportlab.lib.pagesizes import letter
+from reportlab.lib.pagesizes import landscape
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 from reportlab.lib import colors
@@ -49,69 +49,81 @@ import qrcode
 
 def make_certificate_pdf(full_name: str, email: str, score_pct: float, cert_id: str) -> bytes:
     buffer = io.BytesIO()
-    c = canvas.Canvas(buffer, pagesize=letter)
-    width, height = letter
+    # Landscape US Letter
+    c = canvas.Canvas(buffer, pagesize=landscape(letter))
+    width, height = landscape(letter)  # ~ (792, 612) points at 72 dpi
 
-    # Optional background image (assets/cert_bg.png; letter size ~2550x3300)
+    # Optional full-bleed background
     bg_path = "assets/cert_bg.png"
     if os.path.exists(bg_path):
-        c.drawImage(ImageReader(bg_path), 0, 0, width=width, height=height)
+        try:
+            # Fill entire page (keeps aspect ratio; centers)
+            c.drawImage(
+                ImageReader(bg_path),
+                0, 0,
+                width=width, height=height,
+                preserveAspectRatio=True, anchor='c'
+            )
+        except Exception as e:
+            st.warning(f"Background image found but could not be drawn: {e}")
+    else:
+        st.caption("ℹ️ No certificate background found at assets/cert_bg.png")
 
-    # Header
+    # Header (top center)
     c.setFillColor(colors.HexColor("#0B3D91"))
     c.setFont("Helvetica-Bold", 22)
-    c.drawCentredString(width/2, height - 100, ORG_NAME)
+    c.drawCentredString(width/2, height - 50, ORG_NAME)
 
     c.setFillColor(colors.black)
-    c.setFont("Helvetica", 14)
-    c.drawCentredString(width/2, height - 130, "Certificate of Completion")
+    c.setFont("Helvetica", 16)
+    c.drawCentredString(width/2, height - 80, "Certificate of Completion")
 
-    # Recipient
-    c.setFont("Helvetica-Bold", 20)
-    c.drawCentredString(width/2, height - 180, full_name)
+    # Recipient name (large, center)
+    c.setFont("Helvetica-Bold", 24)
+    c.drawCentredString(width/2, height - 140, full_name)
 
-    # Body (simple wrap)
+    # Body text (wrapped, center)
     styles = getSampleStyleSheet()
     body = (
         f"This certifies that <b>{full_name}</b> ({email}) has attended and successfully completed the "
-        f"webinar <b>{COURSE_TITLE}</b> held on <b>{COURSE_DATE}</b>, and passed the post-test. "
-        f"Credits awarded: <b>{CREDIT_HOURS} contact hour(s)</b>."
+        f"webinar <b>{COURSE_TITLE}</b> held on <b>{COURSE_DATE}</b>, and passed the post-test with a score of "
+        f"<b>{round(score_pct)}%</b>. Credits awarded: <b>{CREDIT_HOURS} contact hour(s)</b>."
     )
-    para = Paragraph(body, styles["Normal"])
-    import textwrap as tw
-    y = height - 220
+    from textwrap import wrap
     c.setFont("Helvetica", 12)
-    for line in tw.wrap(para.text, 100):
+    y = height - 180  # start a bit below the name
+    for line in wrap(Paragraph(body, styles["Normal"]).text, 95):
         c.drawCentredString(width/2, y, line)
         y -= 16
 
-    # Signature block
+    # Signature block (bottom-left area)
     c.setFont("Helvetica-Bold", 12)
-    c.drawString(72, 140, CERT_SIGNATURE_NAME)
+    c.drawString(60, 90, CERT_SIGNATURE_NAME)
     c.setFont("Helvetica", 11)
-    c.drawString(72, 125, CERT_SIGNATURE_TITLE)
-    c.drawString(72, 110, f"Issued by: {CERT_ISSUER}")
+    c.drawString(60, 74, CERT_SIGNATURE_TITLE)
+    c.drawString(60, 58, f"Issued by: {CERT_ISSUER}")
 
-    # Cert ID + issued on
+    # Certificate ID + issue date (bottom-right text block)
     issued_on = datetime.now().strftime("%Y-%m-%d %H:%M %Z")
     c.setFont("Helvetica", 10)
-    c.drawRightString(width - 72, 110, f"Certificate ID: {cert_id}")
-    c.drawRightString(width - 72, 95, f"Issued on: {issued_on}")
+    c.drawRightString(width - 60, 74, f"Certificate ID: {cert_id}")
+    c.drawRightString(width - 60, 58, f"Issued on: {issued_on}")
 
-    # QR code to verify
+    # QR code (bottom-right)
     verify_url = f"{CERT_VERIFY_BASE_URL}{cert_id}"
     qr = qrcode.QRCode(box_size=3, border=2)
     qr.add_data(verify_url)
     qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white")
-    qrb = io.BytesIO()
-    img.save(qrb, format="PNG")
-    qrb.seek(0)
-    c.drawImage(ImageReader(qrb), width - 162, 130, 90, 90)
+    qimg = qr.make_image(fill_color="black", back_color="white")
+    qbuf = io.BytesIO()
+    qimg.save(qbuf, format="PNG")
+    qbuf.seek(0)
+    qr_size = 90  # adjust if needed
+    c.drawImage(ImageReader(qbuf), width - 150, 80, qr_size, qr_size)  # near the bottom-right
     c.setFont("Helvetica-Oblique", 9)
-    c.drawRightString(width - 72, 125, "Scan to verify")
+    c.drawRightString(width - 60, 76, "Scan to verify")
 
-    # Accreditation footer
+    # Accreditation footer (very bottom center)
     c.setFont("Helvetica", 9)
     footer_lines = [
         "Philippine Nurses Association of America Provider Unit is accredited as a provider of",
@@ -120,14 +132,15 @@ def make_certificate_pdf(full_name: str, email: str, score_pct: float, cert_id: 
         f"Contact Hours Awarded: {CREDIT_HOURS}",
         "PNAA Address: 1346 How Lane, Suites 109-110, North Brunswick, NJ 08902"
     ]
-    y0 = 70
+    y0 = 36
     for line in footer_lines:
         c.drawCentredString(width/2, y0, line)
-        y0 -= 12
+        y0 += 12  # bottom-up spacing
 
     c.showPage()
     c.save()
     return buffer.getvalue()
+
 
 # =========================
 # PERSIST: CSV (local)
