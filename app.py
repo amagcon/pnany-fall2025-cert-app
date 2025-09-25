@@ -126,12 +126,12 @@ def make_certificate_pdf(full_name: str, email: str, score_pct: float, cert_id: 
     # Accreditation footer (very bottom center)
    # c.setFont("Helvetica", 9)
    # footer_lines = [
-        "Philippine Nurses Association of America Provider Unit is accredited as a provider of",
-        "nursing continuing professional development by the American Nurses Credentialing Center's",
-        "Commission on Accreditation. Provider Number: P0613",
-        f"Contact Hours Awarded: {CREDIT_HOURS}",
-        "PNAA Address: 1346 How Lane, Suites 109-110, North Brunswick, NJ 08902"
-    ]
+   #     "Philippine Nurses Association of America Provider Unit is accredited as a provider of",
+   #     "nursing continuing professional development by the American Nurses Credentialing Center's",
+   #     "Commission on Accreditation. Provider Number: P0613",
+   #     f"Contact Hours Awarded: {CREDIT_HOURS}",
+   #     "PNAA Address: 1346 How Lane, Suites 109-110, North Brunswick, NJ 08902"
+   # ]
     y0 = 36
     for line in footer_lines:
         c.drawCentredString(width/2, y0, line)
