@@ -2,3 +2,5 @@ streamlit==1.38.0
 reportlab==4.2.5
 qrcode==7.4.2
 Pillow==10.4.0
+gspread==6.1.2
+oauth2client==4.1.3
