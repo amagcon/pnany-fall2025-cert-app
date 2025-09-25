@@ -70,9 +70,9 @@ def make_certificate_pdf(full_name: str, email: str, score_pct: float, cert_id: 
         st.caption("ℹ️ No certificate background found at assets/cert_bg.png")
 
     # Header (top center)
-    c.setFillColor(colors.HexColor("#0B3D91"))
-    c.setFont("Helvetica-Bold", 22)
-    c.drawCentredString(width/2, height - 50, ORG_NAME)
+    # c.setFillColor(colors.HexColor("#0B3D91"))
+    # c.setFont("Helvetica-Bold", 22)
+    # c.drawCentredString(width/2, height - 50, ORG_NAME)
 
     c.setFillColor(colors.black)
     c.setFont("Helvetica", 16)
