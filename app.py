@@ -3,8 +3,7 @@ import streamlit as st
 from datetime import datetime
 import uuid, csv, os, io, json
 
-st.write("Secrets keys loaded:", list(st.secrets.keys()))
-
+#st.write("Secrets keys loaded:", list(st.secrets.keys()))
 
 # Page config MUST be the first Streamlit command
 st.set_page_config(page_title="PNANY Fall 2025 — Evaluation & Certificate", page_icon="🎓", layout="centered")
