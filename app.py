@@ -305,27 +305,29 @@ if st.session_state.get("participant_ok"):
         # Save locally
         save_row_to_csv(os.path.join(SAVE_DIR, "submissions.csv"), row)
 
-        # Google Sheets logging (TOML secrets only)
+        #
+        # Google Sheets logging (TOML secrets)
         try:
             import gspread
             from oauth2client.service_account import ServiceAccountCredentials
-
+        
             missing = []
             if "gcp_service_account" not in st.secrets:
                 missing.append("[gcp_service_account]")
             if "GSPREAD_SHEET_NAME" not in st.secrets:
                 missing.append("GSPREAD_SHEET_NAME")
-
+        
             if not missing:
                 creds_info = dict(st.secrets["gcp_service_account"])
                 scope = ["https://www.googleapis.com/auth/spreadsheets",
                          "https://www.googleapis.com/auth/drive"]
                 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_info, scope)
                 client = gspread.authorize(creds)
-
+        
                 sh = client.open(st.secrets["GSPREAD_SHEET_NAME"])
                 ws = sh.sheet1
-
+        
+                # Must align with your header order in the sheet
                 values = [
                     row["timestamp"], row["full_name"], row["email"], row["role"], row["attendance"],
                     row["ev_org"], row["ev_ad"], row["ev_rel"], row["ev_virt"], row["ev_obj"],
@@ -346,6 +348,7 @@ if st.session_state.get("participant_ok"):
                 st.caption("Sheets logging not enabled. Missing: " + ", ".join(missing))
         except Exception as e:
             st.warning(f"Google Sheets logging failed: {e}")
+
 
         # Certificate
         if passed:
