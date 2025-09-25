@@ -98,18 +98,18 @@ def make_certificate_pdf(full_name: str, email: str, score_pct: float, cert_id: 
     c.drawRightString(width - 60, 58, f"Issued on: {issued_on}")
 
     # QR (bottom-right)
-    verify_url = f"{CERT_VERIFY_BASE_URL}{cert_id}"
-    qr = qrcode.QRCode(box_size=3, border=2)
-    qr.add_data(verify_url)
-    qr.make(fit=True)
-    qimg = qr.make_image(fill_color="black", back_color="white")
-    qbuf = io.BytesIO()
-    qimg.save(qbuf, format="PNG")
-    qbuf.seek(0)
-    qr_size = 90
-    c.drawImage(ImageReader(qbuf), width - 150, 78, qr_size, qr_size)
-    c.setFont("Helvetica-Oblique", 9)
-    c.drawRightString(width - 60, 76, "Scan to verify")
+    #verify_url = f"{CERT_VERIFY_BASE_URL}{cert_id}"
+    #qr = qrcode.QRCode(box_size=3, border=2)
+    #qr.add_data(verify_url)
+    #qr.make(fit=True)
+    #qimg = qr.make_image(fill_color="black", back_color="white")
+    #qbuf = io.BytesIO()
+    #qimg.save(qbuf, format="PNG")
+    #qbuf.seek(0)
+    #qr_size = 90
+    #c.drawImage(ImageReader(qbuf), width - 150, 78, qr_size, qr_size)
+    #c.setFont("Helvetica-Oblique", 9)
+    #c.drawRightString(width - 60, 76, "Scan to verify")
 
     # (Footer removed by request — nothing extra drawn here)
 
