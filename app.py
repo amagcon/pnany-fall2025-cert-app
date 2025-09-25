@@ -162,7 +162,7 @@ if st.session_state.get("participant_ok"):
 
     # Section 1 — Likert (1–5; rendered as text scale)
     likert = ["Strongly agree", "Agree", "Undecided", "Disagree", "Strongly disagree"]
-    def L(label): return st.select_slider(label, options=likert, value="Agree")
+    def L(label): return st.select_slider(label, options=likert, value="Strongly agree")
 
     ev_org = L("Was well organized")
     ev_ad = L("Was consistent with flyer advertising event")
