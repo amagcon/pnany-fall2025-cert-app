@@ -8,7 +8,9 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 from reportlab.lib import colors
 
-from supabase_client import get_supabase  # make sure supabase_client.py exists next to this file
+# ====== Google Sheets deps ======
+import gspread
+from google.oauth2.service_account import Credentials
 
 # =========================
 # Streamlit Config
@@ -29,10 +31,10 @@ COURSE_DATE  = COURSE.get("course_date", "October 18, 2025")
 CREDIT_HOURS = float(COURSE.get("credit_hours", 4.75))
 PASSING_SCORE= int(COURSE.get("passing_score", 75))
 
-STORAGE      = st.secrets.get("storage", {})
-USE_STORAGE  = bool(STORAGE.get("bucket"))
-BUCKET_NAME  = STORAGE.get("bucket", "certificates")
-PUBLIC_URLS  = bool(STORAGE.get("public_urls", True))
+SHEETS = st.secrets.get("sheets", {})
+SHEET_ID = SHEETS.get("sheet_id", "")
+EVAL_TAB = SHEETS.get("eval_tab", "evaluations")
+CERT_TAB = SHEETS.get("cert_tab", "certificates")
 
 # Local CSV backup folder
 SAVE_DIR = "data"
@@ -45,15 +47,83 @@ with open("questions.json", "r", encoding="utf-8") as f:
     QUIZ = json.load(f)
 
 # =========================
-# Helpers
+# Google Sheets helpers
+# =========================
+SHEETS_SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+GS_CREDS = Credentials.from_service_account_info(
+    st.secrets["gcp_service_account"],
+    scopes=SHEETS_SCOPES,
+)
+GSPREAD_CLIENT = gspread.authorize(GS_CREDS)
+
+def sheets_append_row(sheet_id: str, tab_name: str, values: list, header: list | None = None):
+    """Append a row to a Google Sheet worksheet; create the worksheet with header if missing."""
+    sh = GSPREAD_CLIENT.open_by_key(sheet_id)
+    try:
+        ws = sh.worksheet(tab_name)
+    except gspread.WorksheetNotFound:
+        cols = max(len(values), len(header) if header else 0, 1)
+        ws = sh.add_worksheet(title=tab_name, rows=1000, cols=cols)
+        if header:
+            ws.append_row(header, value_input_option="USER_ENTERED")
+    ws.append_row(values, value_input_option="USER_ENTERED")
+
+def save_eval_to_sheets(row_dict: dict):
+    header = [
+        "timestamp","full_name","email","role","attendance",
+        "score_pct","passed","cert_id","overall_prog","overall_rec","overall_zoom",
+        "ev_org","ev_ad","ev_rel","ev_virt","ev_obj",
+        "beneficial_topic","topics_interest","comments","payload_json"
+    ]
+    payload_json = json.dumps(row_dict, ensure_ascii=False)
+    values = [
+        row_dict.get("timestamp"),
+        row_dict.get("full_name"),
+        row_dict.get("email"),
+        row_dict.get("role"),
+        row_dict.get("attendance"),
+        row_dict.get("score_pct"),
+        str(row_dict.get("passed")),
+        row_dict.get("cert_id"),
+        row_dict.get("overall_prog"),
+        row_dict.get("overall_rec"),
+        row_dict.get("overall_zoom"),
+        row_dict.get("ev_org"),
+        row_dict.get("ev_ad"),
+        row_dict.get("ev_rel"),
+        row_dict.get("ev_virt"),
+        row_dict.get("ev_obj"),
+        row_dict.get("beneficial_topic"),
+        row_dict.get("topics_interest"),
+        row_dict.get("comments"),
+        payload_json,
+    ]
+    sheets_append_row(SHEET_ID, EVAL_TAB, values, header=header)
+
+def save_cert_to_sheets(cert_row: dict):
+    header = [
+        "created_at","cert_id","name","email","course_title","course_date","credit_hours"
+    ]
+    values = [
+        datetime.now().isoformat(timespec="seconds"),
+        cert_row.get("cert_id"),
+        cert_row.get("name"),
+        cert_row.get("email"),
+        cert_row.get("course_title"),
+        cert_row.get("course_date"),
+        cert_row.get("credit_hours"),
+    ]
+    sheets_append_row(SHEET_ID, CERT_TAB, values, header=header)
+
+# =========================
+# Other helpers
 # =========================
 def make_certificate_pdf(full_name: str, email: str, score_pct: float, cert_id: str) -> bytes:
-    """Generate a 1-page certificate PDF (landscape Letter) and return bytes."""
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=landscape(letter))
     width, height = landscape(letter)
 
-    # Optional background image: place at assets/cert_bg.png
+    # Optional background image
     bg_path = "assets/cert_bg.png"
     if os.path.exists(bg_path):
         try:
@@ -62,16 +132,13 @@ def make_certificate_pdf(full_name: str, email: str, score_pct: float, cert_id: 
         except Exception as e:
             st.warning(f"Background image found but could not be drawn: {e}")
 
-    # Title
     c.setFillColor(colors.black)
     c.setFont("Helvetica-Bold", 32)
     c.drawCentredString(width/2, height/2 + 95, "Certificate of Completion")
 
-    # Name
     c.setFont("Helvetica-Bold", 26)
     c.drawCentredString(width/2, height/2 + 55, full_name)
 
-    # Body
     c.setFont("Helvetica", 13)
     body = (
         f"has successfully completed the Philippine Nurses Association of New York, Inc. webinar "
@@ -84,7 +151,6 @@ def make_certificate_pdf(full_name: str, email: str, score_pct: float, cert_id: 
         c.drawCentredString(width/2, y, line)
         y -= 16
 
-    # Cert ID & issued date
     issued_on = datetime.now().strftime("%Y-%m-%d %H:%M")
     c.setFont("Helvetica", 9)
     c.drawRightString(width - 60, 72, f"Certificate ID: {cert_id}")
@@ -94,9 +160,7 @@ def make_certificate_pdf(full_name: str, email: str, score_pct: float, cert_id: 
     c.save()
     return buffer.getvalue()
 
-
 def save_row_to_csv(path: str, row: dict):
-    """Append a row to a CSV (creates header if file doesn't exist)."""
     new = not os.path.exists(path)
     with open(path, "a", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=row.keys())
@@ -104,79 +168,11 @@ def save_row_to_csv(path: str, row: dict):
             w.writeheader()
         w.writerow(row)
 
-
-def sb_insert(table: str, payload: dict):
-    """Insert a row; show any errors clearly. Works across supabase-py versions."""
-    sb = get_supabase()
-    try:
-   #     res = sb.table(table).insert(payload).execute()  # <-- no .select("*")
-        sb.table("evaluations").insert(payload).execute()
-        data = getattr(res, "data", None)
-        if not data:
-            # Some builds return [] even on success; surface the raw response so we can see it
-            st.warning(f"Insert may have succeeded but returned no data. Raw response: {res.__dict__}")
-        return data
-    except Exception as e:
-        st.error(f"Supabase insert to '{table}' raised an exception: {e}")
-        raise
-
-
-def upload_to_storage(file_bytes: bytes, path: str) -> str:
-    """Upload to Supabase Storage and return public or signed URL."""
-    sb = get_supabase()
-    try:
-        # idempotent remove/replace
-        try:
-            sb.storage.from_(BUCKET_NAME).remove([path])
-        except Exception:
-            pass
-        sb.storage.from_(BUCKET_NAME).upload(
-            path=path,
-            file=file_bytes,
-            file_options={"content-type": "application/pdf"}
-        )
-        if PUBLIC_URLS:
-            return sb.storage.from_(BUCKET_NAME).get_public_url(path)
-        else:
-            signed = sb.storage.from_(BUCKET_NAME).create_signed_url(path, 7 * 24 * 3600)
-            return signed.get("signedURL")
-    except Exception as e:
-        st.error(f"Storage upload failed: {e}")
-        return None
-
 # =========================
 # UI
 # =========================
 st.title("🎓 PNANY Fall 2025 — Evaluation & Post-Test")
 st.caption("Complete the evaluation and post-test. On passing (≥ 75%), your certificate will be generated.")
-
-# ---- TEMP: health check (you can delete this block after success) ----
-with st.expander("🔧 Connection check (temporary)"):
-    if st.button("Run Supabase health check"):
-        try:
-            sb = get_supabase()
-            sel = sb.table("evaluations").select("id", count="exact").limit(1).execute()
-            st.write("SELECT evaluations:", getattr(sel, "data", sel))
-        except Exception as e:
-            st.error(f"SELECT failed: {e}")
-
-        try:
-            probe = {
-                "name": "Health Check",
-                "email": "healthcheck@example.com",
-                "license": None,
-                "session_ratings": {"ping": True},
-                "comments": "debug insert",
-                "quiz_score": 0,
-                "passed": False,
-                "course_title": "HealthCheck",
-                "course_date": "N/A",
-                "credit_hours": 0
-            }
-            ins = sb_insert("evaluations", probe)
-            st.write("INSERT evaluations result:", ins)
-        except Exception as e:
-            st.error(f"INSERT failed: {e}")
 
 # ---- 1) Participant info ----
 with st.form("info"):
@@ -273,7 +269,6 @@ if st.session_state.get("participant_ok"):
 
     # ---- Submit ----
     if st.button("Submit Evaluation & Generate Certificate"):
-        # Validate quiz completion
         if any(answers[str(i)] is None for i in range(1, len(QUIZ) + 1)):
             st.error("Please answer all post-test questions.")
             st.stop()
@@ -333,55 +328,12 @@ if st.session_state.get("participant_ok"):
         }
         save_row_to_csv(os.path.join(SAVE_DIR, "submissions.csv"), row)
 
-        # Save to Supabase (evaluations)
-        evaluation_payload = {
-            "name": full_name,
-            "email": email,
-            "license": None,
-            "session_ratings": {
-                "ev_org": ev_org,
-                "ev_ad": ev_ad,
-                "ev_rel": ev_rel,
-                "ev_virt": ev_virt,
-                "ev_obj": ev_obj,
-                "overall_prog": overall_prog,
-                "overall_rec": overall_rec,
-                "overall_zoom": overall_zoom,
-                "lo_met": lo_met,
-                "speakers": speaker_ratings,
-                "improvements": {
-                    "knowledge": imp_knowledge,
-                    "skills": imp_skills,
-                    "competence": imp_competence,
-                    "performance": imp_performance,
-                    "outcomes": imp_outcomes
-                },
-                "fair_balanced": fair_balanced,
-                "commercial_support": commercial_support,
-                "commercial_bias": commercial_bias,
-                "bias_explain": bias_explain,
-                "practice_change": {
-                    "values": pc_values,
-                    "joy": pc_joy,
-                    "health": pc_health,
-                    "other": pc_other
-                },
-                "beneficial_topic": beneficial_topic,
-                "topics_interest": topics_interest,
-                "comments": comments
-            },
-            "quiz_score": float(f"{score_pct:.0f}"),
-            "passed": passed,
-            "course_title": COURSE_TITLE,
-            "course_date": COURSE_DATE,
-            "credit_hours": CREDIT_HOURS
-        }
+        # Save to Google Sheets (evaluations)
         try:
-            ins_eval = sb_insert("evaluations", evaluation_payload)
-            if ins_eval:
-                st.success(f"Saved to database. Row id: {ins_eval[0].get('id', '—')}")
+            save_eval_to_sheets(row)
+            st.success("Saved to Google Sheets ✅")
         except Exception as e:
-            st.warning(f"Saved locally; Supabase insert failed: {e}")
+            st.error(f"Could not save to Google Sheets (evaluations): {e}")
 
         if not passed:
             st.error("You did not reach the passing score. You may review content and retake the post-test.")
@@ -390,15 +342,7 @@ if st.session_state.get("participant_ok"):
         # Passed → certificate
         pdf_bytes = make_certificate_pdf(full_name, email, score_pct, cert_id)
 
-        storage_url = None
-        storage_path = None
-        if USE_STORAGE:
-            year = datetime.utcnow().strftime("%Y")
-            storage_path = f"CERTS/{year}/{cert_id}.pdf"
-            url = upload_to_storage(pdf_bytes, storage_path)
-            storage_url = url
-
-        # Save certificate row to Supabase
+        # Save certificate metadata to Google Sheets
         cert_row = {
             "cert_id": cert_id,
             "name": full_name,
@@ -406,19 +350,12 @@ if st.session_state.get("participant_ok"):
             "course_title": COURSE_TITLE,
             "course_date": COURSE_DATE,
             "credit_hours": CREDIT_HOURS,
-            "issuer": COURSE.get("issuer", "PNAA Accredited Provider Unit (P0613)"),
-            "signature_name": COURSE.get("signature_name", "Ninotchka Rosete, PhD, RN-BC"),
-            "signature_title": COURSE.get("signature_title", "Director, PNAA Accredited Provider Unit"),
-            "storage_path": storage_path
         }
         try:
-            ins_cert = sb_insert("certificates", cert_row)
-            if ins_cert:
-                st.caption(f"Certificate recorded. Cert ID: {ins_cert[0].get('cert_id', '—')}")
+            save_cert_to_sheets(cert_row)
         except Exception as e:
-            st.warning(f"Certificate recorded locally only (DB insert issue): {e}")
+            st.warning(f"Certificate recorded locally only (Sheets issue): {e}")
 
-        # Download link + optional storage link
         st.success("🎉 Congratulations! You passed and your certificate is ready.")
         st.download_button(
             "⬇️ Download Certificate (PDF)",
@@ -426,5 +363,3 @@ if st.session_state.get("participant_ok"):
             file_name=f"Certificate_{full_name.replace(' ', '_')}.pdf",
             mime="application/pdf",
         )
-        if storage_url:
-            st.link_button("Open Certificate Link", storage_url)
