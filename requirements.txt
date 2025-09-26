@@ -9,3 +9,6 @@ supabase
 fpdf2
 pandas
 python-dotenv
+
+gspread
+google-auth
