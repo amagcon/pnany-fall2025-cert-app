@@ -106,14 +106,14 @@ def save_row_to_csv(path: str, row: dict):
 
 
 def sb_insert(table: str, payload: dict):
-    """Insert a row and return the inserted record; surface any errors clearly."""
+    """Insert a row; show any errors clearly. Works across supabase-py versions."""
     sb = get_supabase()
     try:
-        # .select("*") returns the inserted row so we can confirm IDs
-        res = sb.table(table).insert(payload).select("*").execute()
+        res = sb.table(table).insert(payload).execute()  # <-- no .select("*")
         data = getattr(res, "data", None)
         if not data:
-            st.error(f"Supabase insert to '{table}' returned no data. Raw response: {res.__dict__}")
+            # Some builds return [] even on success; surface the raw response so we can see it
+            st.warning(f"Insert may have succeeded but returned no data. Raw response: {res.__dict__}")
         return data
     except Exception as e:
         st.error(f"Supabase insert to '{table}' raised an exception: {e}")
