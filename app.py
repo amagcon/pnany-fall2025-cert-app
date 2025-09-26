@@ -8,7 +8,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 from reportlab.lib import colors
 
-from supabase_client import get_supabase
+from supabase_client import get_supabase  # make sure supabase_client.py exists next to this file
 
 # =========================
 # Streamlit Config
@@ -106,39 +106,76 @@ def save_row_to_csv(path: str, row: dict):
 
 
 def sb_insert(table: str, payload: dict):
-    """Insert a row into Supabase and show errors if they happen."""
+    """Insert a row and return the inserted record; surface any errors clearly."""
     sb = get_supabase()
-    res = sb.table(table).insert(payload).execute()
-    if not getattr(res, "data", None):
-        msg = getattr(res, "error", None) or getattr(res, "message", None) or res.__dict__
-        st.error(f"Supabase insert to '{table}' returned no data. Details: {msg}")
-    return res
+    try:
+        # .select("*") returns the inserted row so we can confirm IDs
+        res = sb.table(table).insert(payload).select("*").execute()
+        data = getattr(res, "data", None)
+        if not data:
+            st.error(f"Supabase insert to '{table}' returned no data. Raw response: {res.__dict__}")
+        return data
+    except Exception as e:
+        st.error(f"Supabase insert to '{table}' raised an exception: {e}")
+        raise
 
 
 def upload_to_storage(file_bytes: bytes, path: str) -> str:
     """Upload to Supabase Storage and return public or signed URL."""
     sb = get_supabase()
-    # idempotent remove/replace
     try:
-        sb.storage.from_(BUCKET_NAME).remove([path])
-    except Exception:
-        pass
-    sb.storage.from_(BUCKET_NAME).upload(
-        path=path,
-        file=file_bytes,
-        file_options={"content-type": "application/pdf"}
-    )
-    if PUBLIC_URLS:
-        return sb.storage.from_(BUCKET_NAME).get_public_url(path)
-    else:
-        signed = sb.storage.from_(BUCKET_NAME).create_signed_url(path, 7 * 24 * 3600)
-        return signed.get("signedURL")
+        # idempotent remove/replace
+        try:
+            sb.storage.from_(BUCKET_NAME).remove([path])
+        except Exception:
+            pass
+        sb.storage.from_(BUCKET_NAME).upload(
+            path=path,
+            file=file_bytes,
+            file_options={"content-type": "application/pdf"}
+        )
+        if PUBLIC_URLS:
+            return sb.storage.from_(BUCKET_NAME).get_public_url(path)
+        else:
+            signed = sb.storage.from_(BUCKET_NAME).create_signed_url(path, 7 * 24 * 3600)
+            return signed.get("signedURL")
+    except Exception as e:
+        st.error(f"Storage upload failed: {e}")
+        return None
 
 # =========================
 # UI
 # =========================
 st.title("🎓 PNANY Fall 2025 — Evaluation & Post-Test")
 st.caption("Complete the evaluation and post-test. On passing (≥ 75%), your certificate will be generated.")
+
+# ---- TEMP: health check (you can delete this block after success) ----
+with st.expander("🔧 Connection check (temporary)"):
+    if st.button("Run Supabase health check"):
+        try:
+            sb = get_supabase()
+            sel = sb.table("evaluations").select("id", count="exact").limit(1).execute()
+            st.write("SELECT evaluations:", getattr(sel, "data", sel))
+        except Exception as e:
+            st.error(f"SELECT failed: {e}")
+
+        try:
+            probe = {
+                "name": "Health Check",
+                "email": "healthcheck@example.com",
+                "license": None,
+                "session_ratings": {"ping": True},
+                "comments": "debug insert",
+                "quiz_score": 0,
+                "passed": False,
+                "course_title": "HealthCheck",
+                "course_date": "N/A",
+                "credit_hours": 0
+            }
+            ins = sb_insert("evaluations", probe)
+            st.write("INSERT evaluations result:", ins)
+        except Exception as e:
+            st.error(f"INSERT failed: {e}")
 
 # ---- 1) Participant info ----
 with st.form("info"):
@@ -339,7 +376,9 @@ if st.session_state.get("participant_ok"):
             "credit_hours": CREDIT_HOURS
         }
         try:
-            sb_insert("evaluations", evaluation_payload)
+            ins_eval = sb_insert("evaluations", evaluation_payload)
+            if ins_eval:
+                st.success(f"Saved to database. Row id: {ins_eval[0].get('id', '—')}")
         except Exception as e:
             st.warning(f"Saved locally; Supabase insert failed: {e}")
 
@@ -351,15 +390,12 @@ if st.session_state.get("participant_ok"):
         pdf_bytes = make_certificate_pdf(full_name, email, score_pct, cert_id)
 
         storage_url = None
+        storage_path = None
         if USE_STORAGE:
             year = datetime.utcnow().strftime("%Y")
             storage_path = f"CERTS/{year}/{cert_id}.pdf"
-            try:
-                storage_url = upload_to_storage(pdf_bytes, storage_path)
-            except Exception as e:
-                st.warning(f"Certificate generated but could not upload to storage: {e}")
-        else:
-            storage_path = None
+            url = upload_to_storage(pdf_bytes, storage_path)
+            storage_url = url
 
         # Save certificate row to Supabase
         cert_row = {
@@ -375,7 +411,9 @@ if st.session_state.get("participant_ok"):
             "storage_path": storage_path
         }
         try:
-            sb_insert("certificates", cert_row)
+            ins_cert = sb_insert("certificates", cert_row)
+            if ins_cert:
+                st.caption(f"Certificate recorded. Cert ID: {ins_cert[0].get('cert_id', '—')}")
         except Exception as e:
             st.warning(f"Certificate recorded locally only (DB insert issue): {e}")
 
