@@ -106,8 +106,13 @@ def save_row_to_csv(path: str, row: dict):
 
 
 def sb_insert(table: str, payload: dict):
-    """Insert a row into Supabase."""
-    return get_supabase().table(table).insert(payload).execute()
+    """Insert a row into Supabase and show errors if they happen."""
+    sb = get_supabase()
+    res = sb.table(table).insert(payload).execute()
+    if not getattr(res, "data", None):
+        msg = getattr(res, "error", None) or getattr(res, "message", None) or res.__dict__
+        st.error(f"Supabase insert to '{table}' returned no data. Details: {msg}")
+    return res
 
 
 def upload_to_storage(file_bytes: bytes, path: str) -> str:
