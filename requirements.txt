@@ -9,6 +9,7 @@ supabase
 fpdf2
 pandas
 python-dotenv
-
+streamlit
+reportlab
 gspread
 google-auth
