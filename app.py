@@ -33,7 +33,7 @@ USE_STORAGE  = bool(STORAGE.get("bucket"))
 BUCKET_NAME  = STORAGE.get("bucket", "certificates")
 PUBLIC_URLS  = bool(STORAGE.get("public_urls", True))
 
-# ---------- Load quiz from JSON ----------
+# ---------- Load quiz ----------
 with open("questions.json", "r", encoding="utf-8") as f:
     QUIZ = json.load(f)
 
@@ -43,7 +43,7 @@ def make_certificate_pdf(full_name: str, email: str, score_pct: float, cert_id: 
     c = canvas.Canvas(buffer, pagesize=landscape(letter))
     width, height = landscape(letter)
 
-    # Optional background image: assets/cert_bg.png
+    # Optional background: assets/cert_bg.png
     bg_path = "assets/cert_bg.png"
     if os.path.exists(bg_path):
         try:
@@ -67,14 +67,12 @@ def make_certificate_pdf(full_name: str, email: str, score_pct: float, cert_id: 
         f"“{COURSE_TITLE}” on {COURSE_DATE} and passed the post-test with a score of "
         f"{round(score_pct)}%. Credits awarded: {CREDIT_HOURS} contact hour(s)."
     )
-    # simple wrap
     import textwrap
     y = height/2 + 18
     for line in textwrap.wrap(body, 100):
         c.drawCentredString(width/2, y, line)
         y -= 16
 
-    # Cert ID & issued date
     issued_on = datetime.now().strftime("%Y-%m-%d %H:%M")
     c.setFont("Helvetica", 9)
     c.drawRightString(width - 60, 72, f"Certificate ID: {cert_id}")
@@ -222,7 +220,7 @@ if st.session_state.get("participant_ok"):
 
         cert_id = str(uuid.uuid4())
 
-        # Build evaluation row (CSV backup)
+        # CSV backup row
         row = {
             "timestamp": datetime.now().isoformat(timespec="seconds"),
             "full_name": full_name,
@@ -247,8 +245,9 @@ if st.session_state.get("participant_ok"):
             "q4_speaker_bedona":    speaker_ratings.get("q4_speaker_bedona"),
             "q4_speaker_agcon":     speaker_ratings.get("q4_speaker_agcon"),
 
-            "improve_knowledge": imp_knowledge, "improve_skills": imp_skills,
-            "improve_competence": imp_compence if (imp_compence:=imp_competence) or True else imp_competence,  # keep key name typo-safe
+            "improve_knowledge": imp_knowledge,
+            "improve_skills": imp_skills,
+            "improve_competence": imp_competence,
             "improve_performance": imp_performance,
             "improve_outcomes": imp_outcomes,
 
@@ -266,7 +265,7 @@ if st.session_state.get("participant_ok"):
         }
         save_row_to_csv(os.path.join(SAVE_DIR, "submissions.csv"), row)
 
-        # ---- Save to Supabase (evaluations) ----
+        # Save to Supabase (evaluations)
         payload = {
             "name": full_name,
             "email": email,
@@ -287,7 +286,7 @@ if st.session_state.get("participant_ok"):
                     "skills": imp_skills,
                     "competence": imp_competence,
                     "performance": imp_performance,
-                    "outcomes": imp_outcomes,
+                    "outcomes": imp_outcomes
                 },
                 "fair_balanced": fair_balanced,
                 "commercial_support": commercial_support,
@@ -297,17 +296,17 @@ if st.session_state.get("participant_ok"):
                     "values": pc_values,
                     "joy": pc_joy,
                     "health": pc_health,
-                    "other": pc_other,
+                    "other": pc_other
                 },
                 "beneficial_topic": beneficial_topic,
                 "topics_interest": topics_interest,
-                "comments": comments,
+                "comments": comments
             },
             "quiz_score": float(f"{score_pct:.0f}"),
             "passed": passed,
             "course_title": COURSE_TITLE,
             "course_date": COURSE_DATE,
-            "credit_hours": CREDIT_HOURS,
+            "credit_hours": CREDIT_HOURS
         }
         try:
             sb_insert("evaluations", payload)
@@ -318,11 +317,11 @@ if st.session_state.get("participant_ok"):
             st.error("You did not reach the passing score. You may review content and retake the post-test.")
             st.stop()
 
-        # Passed → create certificate, store, record
+        # Passed → certificate
         pdf_bytes = make_certificate_pdf(full_name, email, score_pct, cert_id)
         storage_url = None
         if USE_STORAGE:
-            year = datetime.utcnow().strftime("%%Y")
+            year = datetime.utcnow().strftime("%Y")
             path = f"CERTS/{year}/{cert_id}.pdf"
             try:
                 storage_url = upload_to_storage(pdf_bytes, path)
@@ -339,7 +338,7 @@ if st.session_state.get("participant_ok"):
             "issuer": COURSE.get("issuer", "PNAA Accredited Provider Unit (P0613)"),
             "signature_name": COURSE.get("signature_name", "Ninotchka Rosete, PhD, RN-BC"),
             "signature_title": COURSE.get("signature_title", "Director, PNAA Accredited Provider Unit"),
-            "storage_path": f"CERTS/{datetime.utcnow().strftime('%Y')}/{cert_id}.pdf" if storage_url else None,
+            "storage_path": f"CERTS/{datetime.utcnow().strftime('%Y')}/{cert_id}.pdf" if storage_url else None
         }
         try:
             sb_insert("certificates", cert_row)
@@ -355,3 +354,13 @@ if st.session_state.get("participant_ok"):
         )
         if storage_url:
             st.link_button("Open Certificate Link", storage_url)
+
+# ============ OPTIONAL: simple admin view (toggle on when needed) ============
+with st.expander("🔐 Admin: View submissions (Supabase)"):
+    try:
+        res = get_supabase().table("evaluations").select("*").order("created_at", desc=True).execute()
+        import pandas as pd
+        df = pd.DataFrame(res.data or [])
+        st.dataframe(df, use_container_width=True)
+    except Exception as e:
+        st.info("Admin view unavailable (check Supabase credentials/policies).")
