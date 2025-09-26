@@ -4,3 +4,8 @@ reportlab>=4.2.2
 pandas>=2.2.2
 pillow>=10.4.0
 python-dotenv>=1.0.1
+streamlit
+supabase
+fpdf2
+pandas
+python-dotenv
