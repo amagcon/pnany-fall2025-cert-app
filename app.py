@@ -64,8 +64,8 @@ def make_certificate_pdf(full_name: str, email: str, score_pct: float, cert_id: 
     c.setFont("Helvetica", 13)
     body = (
         f"has successfully completed the Philippine Nurses Association of New York, Inc. webinar "
-        f"“{COURSE_TITLE}” on {COURSE_DATE} and passed the post-test with a score of "
-        f"{round(score_pct)}%. Credits awarded: {CREDIT_HOURS} contact hour(s)."
+        f"“{COURSE_TITLE}” on {COURSE_DATE} and passed the post-test."
+        #f"{round(score_pct)}%. Credits awarded: {CREDIT_HOURS} contact hour(s)."
     )
     import textwrap
     y = height/2 + 18
