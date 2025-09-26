@@ -109,7 +109,8 @@ def sb_insert(table: str, payload: dict):
     """Insert a row; show any errors clearly. Works across supabase-py versions."""
     sb = get_supabase()
     try:
-        res = sb.table(table).insert(payload).execute()  # <-- no .select("*")
+   #     res = sb.table(table).insert(payload).execute()  # <-- no .select("*")
+        sb.table("evaluations").insert(payload).execute()
         data = getattr(res, "data", None)
         if not data:
             # Some builds return [] even on success; surface the raw response so we can see it
