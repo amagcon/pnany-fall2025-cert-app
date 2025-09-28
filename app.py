@@ -16,7 +16,7 @@ from google.oauth2.service_account import Credentials
 # Streamlit Config
 # =========================
 
-st.image("https://example.com/path/to/logo.png", width=250)
+st.image("https://drive.google.com/file/d/1bNQ52mcvyWl06nUp2QDjnx5q_aYTKxeh/view?usp=drive_link", width=250)
 st.set_page_config(
     page_title="PNANY Fall Conference 2025 — Evaluation, Post-test, & Certificate",
     page_icon="🎓",
