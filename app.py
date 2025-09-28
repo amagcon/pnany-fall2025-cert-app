@@ -175,18 +175,49 @@ st.title("🎓 PNANY Fall 2025 — Evaluation & Post-Test")
 st.caption("Complete the evaluation and post-test. On passing (≥ 75%), your certificate will be generated.")
 
 # ---- 1) Participant info ----
+#with st.form("info"):
+#    c1, c2 = st.columns(2)
+#    with c1:
+#        full_name = st.text_input("Full Name *")
+#    with c2:
+#        email = st.text_input("Email *")
+#    role = st.selectbox("Role / Credentials", ["RN", "APRN", "NP", "PA", "Student", "Other"])
+#    attendance = st.checkbox(
+#        "I certify that I attended and completed the Lead to INSPIRE Fall Conference: "
+#        "Gabay at Galing: Empowering the New Generation of Nurse Leaders, held online on October 18, 2025."
+#   )
+#    cont = st.form_submit_button("Continue ➡️")
+
 with st.form("info"):
     c1, c2 = st.columns(2)
     with c1:
         full_name = st.text_input("Full Name *")
     with c2:
         email = st.text_input("Email *")
-    role = st.selectbox("Role / Credentials", ["RN", "APRN", "NP", "PA", "Student", "Other"])
+
+    c3, c4, c5 = st.columns(3)
+    with c3:
+        location_city = st.text_input("City")
+    with c4:
+        location_state = st.text_input("State/Province")
+    with c5:
+        location_country = st.text_input("Country")
+
+    c6, c7 = st.columns(2)
+    with c6:
+        role = st.selectbox("Role / Credentials", ["RN", "APRN", "NP", "PA", "Student", "Other"])
+    with c7:
+        member_status = st.selectbox("PNANY Member Status", ["Member", "Non-member", "Inactive"])
+
+    contact_opt_in = st.checkbox("I’d like to be contacted about future PNANY professional development, membership, and other activities.")
+
     attendance = st.checkbox(
         "I certify that I attended and completed the Lead to INSPIRE Fall Conference: "
         "Gabay at Galing: Empowering the New Generation of Nurse Leaders, held online on October 18, 2025."
     )
     cont = st.form_submit_button("Continue ➡️")
+
+# ---------------
 
 if cont:
     if not full_name or not email or not attendance:
@@ -198,6 +229,20 @@ if cont:
 # ---- 2) Evaluation ----
 if st.session_state.get("participant_ok"):
     st.subheader("📊 Course Evaluation")
+
+    
+# new code
+    LIKERT_MAP = {"Strongly agree":5, "Agree":4, "Undecided":3, "Disagree":2, "Strongly disagree":1}
+    
+    row.update({
+        "ev_org_num":  LIKERT_MAP.get(row["ev_org"], ""),
+        "ev_ad_num":   LIKERT_MAP.get(row["ev_ad"], ""),
+        "ev_rel_num":  LIKERT_MAP.get(row["ev_rel"], ""),
+        "ev_virt_num": LIKERT_MAP.get(row["ev_virt"], ""),
+        "ev_obj_num":  LIKERT_MAP.get(row["ev_obj"], ""),
+    })
+
+    
     likert = ["Strongly agree", "Agree", "Undecided", "Disagree", "Strongly disagree"]
 
     def L(label):
@@ -277,8 +322,32 @@ if st.session_state.get("participant_ok"):
         total = len(QUIZ)
         score_pct = 100 * correct / total
         passed = score_pct >= PASSING_SCORE
-        st.info(f"Your score: **{correct}/{total} ({score_pct:.0f}%)**. Passing score is {PASSING_SCORE}%.")
+        #st.info(f"Your score: **{correct}/{total} ({score_pct:.0f}%)**. Passing score is {PASSING_SCORE}%.")
 
+        # Big pass/fail badge
+    if passed:
+        st.markdown(
+            f"""
+            <div style="padding:16px;border-radius:12px;background:#ECFDF5;border:1px solid #34D399;">
+              <div style="font-size:28px;line-height:1.2;margin-bottom:6px;">✅ <strong>{score_pct:.0f}%</strong></div>
+              <div style="font-size:16px;">Your score: <strong>{correct}/{total}</strong> — Passing score is {PASSING_SCORE}%</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    else:
+        st.markdown(
+            f"""
+            <div style="padding:16px;border-radius:12px;background:#FEF2F2;border:1px solid #F87171;">
+              <div style="font-size:28px;line-height:1.2;margin-bottom:6px;">❌ <strong>{score_pct:.0f}%</strong></div>
+              <div style="font-size:16px;">Your score: <strong>{correct}/{total}</strong> — Passing score is {PASSING_SCORE}%</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+
+        
         cert_id = str(uuid.uuid4())
 
         # CSV backup
@@ -326,6 +395,54 @@ if st.session_state.get("participant_ok"):
             "passed": passed,
             "cert_id": cert_id,
         }
+
+        
+        # === Enrich row with granular fields & new questions ===
+        BOOL = lambda b: "Yes" if b else "No"
+        
+        # Speaker ratings, checkboxes, bias, practice change (from earlier fix)
+        row.update({
+            "speaker_yap":        speaker_ratings.get("q4_speaker_yap"),
+            "speaker_sagar":      speaker_ratings.get("q4_speaker_sagar"),
+            "speaker_velasquez":  speaker_ratings.get("q4_speaker_velasquez"),
+            "speaker_pastoral":   speaker_ratings.get("q4_speaker_pastoral"),
+            "speaker_santarina":  speaker_ratings.get("q4_speaker_santarina"),
+            "speaker_planillo":   speaker_ratings.get("q4_speaker_planillo"),
+            "speaker_florendo":   speaker_ratings.get("q4_speaker_florendo"),
+            "speaker_jomoc":      speaker_ratings.get("q4_speaker_jomoc"),
+            "speaker_oliverio":   speaker_ratings.get("q4_speaker_oliverio"),
+            "speaker_temprosa":   speaker_ratings.get("q4_speaker_temprosa"),
+            "speaker_bedona":     speaker_ratings.get("q4_speaker_bedona"),
+            "speaker_agcon":      speaker_ratings.get("q4_speaker_agcon"),
+        
+            "improve_knowledge":   BOOL(imp_knowledge),
+            "improve_skills":      BOOL(imp_skills),
+            "improve_competence":  BOOL(imp_competence),
+            "improve_performance": BOOL(imp_performance),
+            "improve_outcomes":    BOOL(imp_outcomes),
+        
+            "fair_balanced":       fair_balanced,
+            "commercial_support":  commercial_support,
+            "commercial_bias":     commercial_bias,
+            "bias_explain":        bias_explain,
+        
+            "pc_values": BOOL(pc_values),
+            "pc_joy":    BOOL(pc_joy),
+            "pc_health": BOOL(pc_health),
+            "pc_other":  pc_other,
+        })
+        
+        # NEW: location + member status + contact consent
+        row.update({
+            "location_city":     location_city,
+            "location_state":    location_state,
+            "location_country":  location_country,
+            "member_status":     member_status,
+            "contact_opt_in":    BOOL(contact_opt_in),
+        })
+
+
+        
         save_row_to_csv(os.path.join(SAVE_DIR, "submissions.csv"), row)
 
         # Save to Google Sheets (evaluations)
