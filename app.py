@@ -36,7 +36,7 @@ st.set_page_config(
 # =========================
 COURSE = st.secrets.get("course", {})
 ORG_NAME     = COURSE.get("org_name", "The Philippine Nurses Association of New York, Inc.")
-COURSE_TITLE = COURSE.get("course_title", "Lead to INSPIRE Fall Conference 2025 — Gabay at Galing: Empowering the New Generation of Nurse Leaders")
+COURSE_TITLE = COURSE.get("course_title", "PNANY Fall Conference, Lead to INSPIRE Fall Conference 2025 — Gabay at Galing: Empowering the New Generation of Nurse Leaders")
 COURSE_DATE  = COURSE.get("course_date", "October 18, 2025")
 CREDIT_HOURS = float(COURSE.get("credit_hours", 4.75))
 PASSING_SCORE= int(COURSE.get("passing_score", 75))
@@ -141,8 +141,8 @@ def make_certificate_pdf(full_name: str, email: str, score_pct: float, cert_id: 
     c.setFont("Helvetica", 13)
     body = (
         f"has successfully completed the Philippine Nurses Association of New York, Inc. webinar "
-        f"“{COURSE_TITLE}” on {COURSE_DATE} and passed the post-test with a score of "
-        f"{round(score_pct)}%. Credits awarded: {CREDIT_HOURS} contact hour(s)."
+        f"“{COURSE_TITLE}” on {COURSE_DATE} and passed the post-test."
+        f"Credits awarded: {CREDIT_HOURS} contact hour(s)."
     )
     import textwrap
     y = height/2 + 18
@@ -172,7 +172,7 @@ def save_row_to_csv(path: str, row: dict):
 # =========================
 # UI
 # =========================
-st.title("🎓 PNANY Fall 2025 — Evaluation & Post-Test")
+st.title("PNANY Fall Conference 2025 — Evaluation & Post-Test")
 st.caption("Complete the evaluation and post-test. On passing (≥ 75%), your certificate will be generated.")
 
 # ---- 1) Participant info ----
@@ -199,7 +199,7 @@ with st.form("info"):
 
     c6, c7 = st.columns(2)
     with c6:
-        role = st.selectbox("Role / Credentials", ["RN", "APRN", "NP", "PA", "Student", "Other"])
+        role = st.selectbox("Credentials", ["RN", "APRN", "NP", "PA", "Student", "Other"])
     with c7:
         member_status = st.selectbox("PNANY Member Status", ["Member", "Non-member", "Inactive"])
 
