@@ -173,7 +173,7 @@ def save_row_to_csv(path: str, row: dict):
 # UI
 # =========================
 st.title("PNANY Fall Conference 2025 — Evaluation & Post-Test")
-st.caption("Complete the evaluation and post-test. On passing (≥ 75%), your certificate will be generated.")
+st.caption("Complete the evaluation and post-test. On passing (≥ 75%), your certificate will be generated. Please make sure that your name is spelled correctly, as this will be used for your certificate.")
 
 # ---- 1) Participant info ----
 with st.form("info"):
